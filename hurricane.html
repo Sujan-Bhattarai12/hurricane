@@ -181,18 +181,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h4 class="anchored" data-anchor-id="find-locations-of-blackouts">Find locations of blackouts</h4>
 <p>For improved computational efficiency and easier interoperability with <code>sf</code>, I will use the <code>stars</code> package for raster handling.<br>
 </p>
-<section id="combine-the-data" class="level5">
-<h5 class="anchored" data-anchor-id="combine-the-data">combine the data</h5>
-<ul>
-<li>read in night lights tiles<br>
-</li>
-<li>combine tiles into a single <code>stars</code> object for each date (2021-02-07 and 2021-02-16)<br>
-
-<ul>
-<li>use <code>st_mosaic</code><br>
-</li>
-</ul></li>
-</ul>
+<p>Read night lights tiles and use st_mosaic to combine them into a single stars object for dates 2021-02-07 and 2021-02-16.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="do">##load required packages</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stars)</span>
@@ -212,17 +201,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>blackout <span class="ot">&lt;-</span> <span class="fu">st_mosaic</span>(night1, night2)</span>
 <span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>night_light <span class="ot">&lt;-</span> <span class="fu">st_mosaic</span>(night3, night4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-</section>
-<section id="create-a-blackout-mask" class="level5">
-<h5 class="anchored" data-anchor-id="create-a-blackout-mask">create a blackout mask</h5>
-<ul>
-<li>change in night lights intensity (presumably) caused by the storm<br>
-</li>
-<li>reclassify the difference raster, assuming that any location that experienced a drop of more than 200 nW cm<sup>-2</sup>sr<sup>-1</sup> experienced a blackout<br>
-</li>
-<li>assign <code>NA</code> to all locations that experienced a drop of <em>less</em> than 200 nW cm<sup>-2</sup>sr<sup>-1</sup><br>
-</li>
-</ul>
+<p>Create blackout mask: Identify storm-induced changes in night lights intensity by reclassifying the difference raster, labeling locations with a drop &gt;200 nW cm<sup>-2</sup>sr<sup>-1</sup> as blackout areas. Assign NA to locations with drops &lt;200 nW cm<sup>-2</sup>sr<sup>-1</sup> for accurate blackout mapping.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="do">## subtract data from pre-light storms to past light-storms</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>light_difference <span class="ot">&lt;-</span> night_light <span class="sc">-</span> blackout</span>
@@ -237,14 +216,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="do">##mask it baby</span></span>
 <span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>light_masked <span class="ot">=</span> <span class="fu">mask</span>(light_difference, rmask)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-</section>
-<section id="vectorize-the-mask" class="level5">
-<h5 class="anchored" data-anchor-id="vectorize-the-mask">vectorize the mask</h5>
-<ul>
-<li>use <code>st_as_sf()</code> to vectorize the blackout mask<br>
-</li>
-<li>fix any invalid geometries using <code>st_make_valid</code></li>
-</ul>
+<p>Vectorize blackout mask: Utilize st_as_sf() to convert the mask into a spatial feature, then address any invalid geometries with st_make_valid for seamless integration into spatial analyses.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="do">##vectorize the blackout mask, since it is important to first convert it</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="do">## to points or polygons for vectorization</span></span>
@@ -253,24 +225,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>vectorized_light_masked <span class="ot">&lt;-</span> <span class="fu">st_make_valid</span>(vectorized_light_masked)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-</section>
-<section id="crop-the-vectorized-map-to-region-of-interest" class="level5">
-<h5 class="anchored" data-anchor-id="crop-the-vectorized-map-to-region-of-interest">crop the vectorized map to region of interest</h5>
-<ul>
-<li>define the Houston metropolitan area with the following coordinates<br>
-
-<ul>
-<li>(-96.5, 29), (-96.5, 30.5), (-94.5, 30.5), (-94.5, 29)<br>
-</li>
-</ul></li>
-<li>turn these coordinates into a polygon using <code>st_polygon</code><br>
-</li>
-<li>convert the polygon into a simple feature collection using <code>st_sfc()</code> and assign a CRS<br>
-</li>
-<li>crop (spatially subset) the blackout mask to our region of interest&nbsp;</li>
-<li>re-project the cropped blackout dataset to EPSG:3083 (NAD83 / Texas Centric Albers Equal Area)<br>
-</li>
-</ul>
+<p>Crop vectorized map to region of interest: Define Houston metropolitan area, create a polygon using coordinates with st_polygon, convert to feature collection via st_sfc() with assigned CRS. Spatially subset blackout mask to the region, then re-project to EPSG:3083 (NAD83 / Texas Centric Albers Equal Area) for consistent spatial analysis.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="do">##make a list of points, and to make it close, make the first and last points same</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>coordinates <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="fl">96.5</span>, <span class="dv">29</span>, <span class="sc">-</span><span class="fl">96.5</span>, <span class="fl">30.5</span>, <span class="sc">-</span><span class="fl">94.5</span>, <span class="fl">30.5</span>, <span class="sc">-</span><span class="fl">94.5</span>, <span class="dv">29</span>, <span class="sc">-</span><span class="fl">96.5</span>, <span class="dv">29</span>), </span>
@@ -302,26 +257,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p><img src="hurricane_files/figure-html/unnamed-chunk-4-2.png" class="img-fluid" width="672"></p>
 </div>
 </div>
-</section>
-<section id="exclude-highways-from-blackout-mask" class="level5">
-<h5 class="anchored" data-anchor-id="exclude-highways-from-blackout-mask">exclude highways from blackout mask</h5>
-<p>The roads geopackage includes data on roads other than highways. However, avoid reading in data that is not needed by taking <code>st_read</code>’s ability to subset using a SQL query.<br>
-</p>
-<ul>
-<li>define SQL query<br>
-</li>
-<li>load just highway data from geopackage using <code>st_read</code><br>
-</li>
-<li>reproject data to EPSG:3083<br>
-</li>
-<li>identify areas within 200m of all highways using <code>st_buffer</code><br>
-
-<ul>
-<li>hint: <code>st_buffer</code> produces undissolved buffers, use <code>st_union</code> to dissolve them<br>
-</li>
-</ul></li>
-<li>areas that experienced blackouts that are further than 200m from a highway</li>
-</ul>
+<p>Exclude highways from blackout mask: Define SQL query, load only highway data from geopackage using st_read with subset query. Reproject to EPSG:3083. Identify blackout areas beyond 200m from highways by creating dissolved buffers using st_buffer and st_union for accurate exclusion.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>query <span class="ot">&lt;-</span> <span class="st">"SELECT * FROM gis_osm_roads_free_1 WHERE fclass='motorway'"</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>highways <span class="ot">&lt;-</span> <span class="fu">st_read</span>(<span class="st">"data/gis_osm_roads_free_1.gpkg"</span>, <span class="at">query =</span> query)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -352,18 +288,7 @@ Geodetic CRS:  WGS 84</code></pre>
 <span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="do">##areas that exeprienced blackouts away from 200m highway</span></span>
 <span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>blackout_mask_without_road <span class="ot">&lt;-</span> <span class="fu">st_difference</span>(blackout_mask, highway_bufferized)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-</section>
-</section>
-<section id="find-homes-impacted-by-blackouts" class="level4">
-<h4 class="anchored" data-anchor-id="find-homes-impacted-by-blackouts">Find homes impacted by blackouts</h4>
-<section id="load-buildings-data-10-points" class="level5">
-<h5 class="anchored" data-anchor-id="load-buildings-data-10-points">load buildings data (10 points)</h5>
-<ul>
-<li>load buildings dataset using <code>st_read</code> and the following SQL query to select only residential buildings<br>
-</li>
-<li>reproject data to EPSG:3083<br>
-</li>
-</ul>
+<p>Find homes impacted by blackouts: Load buildings dataset using st_read with SQL query to select residential buildings. Reproject data to EPSG:3083 for consistent spatial analysis.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>query <span class="ot">&lt;-</span> <span class="st">"SELECT * FROM gis_osm_buildings_a_free_1 WHERE (type IS NULL AND name IS NULL) OR type in ('residential', 'apartments', 'house', 'static_caravan', 'detached')"</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -381,15 +306,7 @@ Geodetic CRS:  WGS 84</code></pre>
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="do">##reproject the CRS to 3083</span></span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>buildings <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(buildings, <span class="at">crs =</span> <span class="dv">3083</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-</section>
-<section id="find-homes-in-blackout-areas" class="level5">
-<h5 class="anchored" data-anchor-id="find-homes-in-blackout-areas">find homes in blackout areas</h5>
-<ul>
-<li>filter to homes within blackout areas<br>
-</li>
-<li>count number of impacted homes<br>
-</li>
-</ul>
+<p>Identify homes in blackout areas: Filter residential buildings to those within blackout zones and count the number of impacted homes.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check validity of geometry</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -408,22 +325,7 @@ Geodetic CRS:  WGS 84</code></pre>
 </div>
 </div>
 <p>85365 houses were affected.</p>
-</section>
-</section>
-<section id="investigate-socioeconomic-factors" class="level4">
-<h4 class="anchored" data-anchor-id="investigate-socioeconomic-factors">Investigate socioeconomic factors</h4>
-<section id="load-acs-data" class="level5">
-<h5 class="anchored" data-anchor-id="load-acs-data">load ACS data</h5>
-<ul>
-<li>geometries are stored in the <code>ACS_2019_5YR_TRACT_48_TEXAS</code> layer<br>
-</li>
-<li>income data is stored in the <code>X19_INCOME</code> layer<br>
-</li>
-<li>select the median income field <code>B19013e1</code><br>
-</li>
-<li>hint: reproject data to EPSG:3083<br>
-</li>
-</ul>
+<p>Investigate socioeconomic factors: Load ACS data from the ACS_2019_5YR_TRACT_48_TEXAS layer. Extract median income data (B19013e1) from the X19_INCOME layer. Reproject the data to EPSG:3083 for consistent spatial analysis.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="do">##read the geometry layer</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>geometry <span class="ot">&lt;-</span> <span class="fu">st_read</span>(<span class="st">"data/ACS_2019_5YR_TRACT_48_TEXAS.gdb.zip"</span>, </span>
@@ -449,19 +351,7 @@ Geodetic CRS:  NAD83</code></pre>
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="do">##select the median income column wiht GEOID</span></span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>median_income <span class="ot">&lt;-</span> income_data[<span class="fu">c</span>(<span class="st">"GEOID"</span>, <span class="st">"B19013e1"</span>)]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-</section>
-<section id="determine-which-census-tracts-experienced-blackouts" class="level5">
-<h5 class="anchored" data-anchor-id="determine-which-census-tracts-experienced-blackouts">determine which census tracts experienced blackouts</h5>
-<ul>
-<li>join the income data to the census tract geometries<br>
-</li>
-<li>hint: make sure to join by geometry ID<br>
-</li>
-<li>spatially join census tract data with buildings determined to be impacted by blackouts<br>
-</li>
-<li>find which census tracts had blackouts<br>
-</li>
-</ul>
+<p>Determine blackout-affected census tracts: Join income data to census tract geometries by geometry ID. Spatially join census tract data with buildings impacted by blackouts to identify census tracts experiencing blackouts.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="do">##get the geometry of the data</span></span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>income_with_geometry <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">right_join</span>(geometry, median_income,</span>
@@ -486,14 +376,7 @@ Geodetic CRS:  NAD83</code></pre>
 <p><img src="hurricane_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
-</section>
-<section id="compare-incomes-of-impacted-tracts-to-unimpacted-tracts" class="level5">
-<h5 class="anchored" data-anchor-id="compare-incomes-of-impacted-tracts-to-unimpacted-tracts">compare incomes of impacted tracts to unimpacted tracts</h5>
-<ul>
-<li>create a map of median income by census tract, designating which tracts had blackouts<br>
-</li>
-<li>plot the distribution of income in impacted and unimpacted tracts</li>
-</ul>
+<p>Compare incomes of impacted and unimpacted tracts: Generate a map of median income by census tract, distinguishing tracts with blackouts. Plot income distribution for impacted and unimpacted tracts for a comprehensive socioeconomic analysis.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="do">##median income by census tracts</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>categorized_final <span class="ot">&lt;-</span> <span class="fu">cbind</span>(income_with_geometry, census_logical) <span class="sc">%&gt;%</span>                                          </span>
@@ -545,8 +428,7 @@ Geodetic CRS:  NAD83</code></pre>
 <p><img src="hurricane_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
-<p>Based on the median income plot, wealthier census tracts seem affected. This is against what is expected since less wealthy areas should have been affected as they don’t have alternative energy sources. These results bolster the argument that wealthier cities are equally or even more vulnerable as climate change brings in bigger and higher storms. Moreover, the median income between the blackout and non-blackout areas is not very different, suggesting that climate change-induced disaster poses equal threats to all background of people.</p>
-</section>
+<p>Contrary to expectations, the plot of median income reveals that wealthier census tracts experienced blackouts, challenging the assumption that less affluent areas would be more susceptible due to limited alternative energy sources. These findings strengthen the argument that wealthier cities may face increased vulnerability to larger storms induced by climate change. Furthermore, the minimal difference in median income between blackout and non-blackout areas suggests that climate change-induced disasters pose a uniform threat across diverse socioeconomic backgrounds.</p>
 </section>
 
 

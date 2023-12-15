@@ -15,13 +15,11 @@ message: false
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-
 "In February 2021, the state of Texas suffered a major power crisis, which came about as a result of three severe winter storms sweeping across the United States on February 10--11, 13--17, and 15--20."[^1] For more background, check out these [engineering](https://www.youtube.com/watch?v=08mwXICY4JM&ab_channel=PracticalEngineering) and [political](https://www.youtube.com/watch?v=Zcrsgdl_hP0&ab_channel=Vox) perspectives.
 
 [^1]: Wikipedia. 2021. "2021 Texas power crisis." Last modified October 2, 2021. <https://en.wikipedia.org/wiki/2021_Texas_power_crisis>.
 
-This independed project involves:
-- estimating the number of homes in Houston that lost power as a result of the first two storms\
+This independed project involves: - estimating the number of homes in Houston that lost power as a result of the first two storms\
 - investigating if socioeconomic factors are predictors of communities recovery from a power outage
 
 The analysis will be based on remotely-sensed night lights data, acquired from the [Visible Infrared Imaging Radiometer Suite (VIIRS)](https://en.wikipedia.org/wiki/Visible_Infrared_Imaging_Radiometer_Suite) onboard the Suomi satellite. In particular, it will use the VNP46A1 to detect differences in night lights before and after the storm to identify areas that lost electric power.
@@ -29,7 +27,6 @@ The analysis will be based on remotely-sensed night lights data, acquired from t
 To determine the number of homes that lost power, I link (spatially join) these areas with [OpenStreetMap](https://www.openstreetmap.org/#map=4/38.01/-95.84) data on buildings and roads.
 
 To investigate potential socioeconomic factors that influenced recovery, you will link your analysis with data from the US Census Bureau.
-
 
 #### Night lights
 
@@ -62,7 +59,7 @@ I obtained building data from OpenStreetMap. We again downloaded from Geofabrick
 
 I cannot readily get socioeconomic information for every home, so instead I obtained data from the [U.S. Census Bureau's American Community Survey](https://www.census.gov/programs-surveys/acs) for census tracts in 2019. The *folder* `ACS_2019_5YR_TRACT_48.gdb` is an ArcGIS ["file geodatabase"](https://desktop.arcgis.com/en/arcmap/latest/manage-data/administer-file-gdbs/file-geodatabases.htm), a multi-file proprietary format that's roughly analogous to a GeoPackage file.\
 
- Each layer contains a subset of the fields documents in the [ACS metadata](https://www2.census.gov/geo/docs/maps-data/data/tiger/prejoined/ACSMetadata2011.txt).\
+Each layer contains a subset of the fields documents in the [ACS metadata](https://www2.census.gov/geo/docs/maps-data/data/tiger/prejoined/ACSMetadata2011.txt).\
 
 The geodatabase contains a layer holding the geometry information, separate from the layers holding the ACS attributes. You have to combine the geometry with the attributes to get a feature layer that `sf` can use.
 
@@ -72,11 +69,7 @@ Below is an outline of the steps you should consider taking to achieve the assig
 
 For improved computational efficiency and easier interoperability with `sf`, I will use the `stars` package for raster handling.\
 
-##### combine the data
-
--   read in night lights tiles\
--   combine tiles into a single `stars` object for each date (2021-02-07 and 2021-02-16)\
-    -  use `st_mosaic`\
+Read night lights tiles and use st_mosaic to combine them into a single stars object for dates 2021-02-07 and 2021-02-16.
 
 ```{r include=TRUE}
 ##load required packages
@@ -99,11 +92,7 @@ night_light <- st_mosaic(night3, night4)
 
 ```
 
-##### create a blackout mask
-
--   change in night lights intensity (presumably) caused by the storm\
--   reclassify the difference raster, assuming that any location that experienced a drop of more than 200 nW cm^-2^sr^-1^ experienced a blackout\
--   assign `NA` to all locations that experienced a drop of *less* than 200 nW cm^-2^sr^-1^\
+Create blackout mask: Identify storm-induced changes in night lights intensity by reclassifying the difference raster, labeling locations with a drop >200 nW cm^-2^sr^-1^ as blackout areas. Assign NA to locations with drops <200 nW cm^-2^sr^-1^ for accurate blackout mapping.
 
 ```{r include=TRUE}
 ## subtract data from pre-light storms to past light-storms
@@ -120,10 +109,7 @@ rmask[rmask <= 200] = NA
 light_masked = mask(light_difference, rmask)
 ```
 
-##### vectorize the mask
-
--   use `st_as_sf()` to vectorize the blackout mask\
--   fix any invalid geometries using `st_make_valid`
+Vectorize blackout mask: Utilize st_as_sf() to convert the mask into a spatial feature, then address any invalid geometries with st_make_valid for seamless integration into spatial analyses.
 
 ```{r include=TRUE}
 ##vectorize the blackout mask, since it is important to first convert it
@@ -134,14 +120,7 @@ vectorized_light_masked <- as.polygons(light_masked) %>%
 vectorized_light_masked <- st_make_valid(vectorized_light_masked)
 ```
 
-##### crop the vectorized map to region of interest
-
--   define the Houston metropolitan area with the following coordinates\
-    -   (-96.5, 29), (-96.5, 30.5), (-94.5, 30.5), (-94.5, 29)\
--   turn these coordinates into a polygon using `st_polygon`\
--   convert the polygon into a simple feature collection using `st_sfc()` and assign a CRS\
--   crop (spatially subset) the blackout mask to our region of interest 
--   re-project the cropped blackout dataset to EPSG:3083 (NAD83 / Texas Centric Albers Equal Area)\
+Crop vectorized map to region of interest: Define Houston metropolitan area, create a polygon using coordinates with st_polygon, convert to feature collection via st_sfc() with assigned CRS. Spatially subset blackout mask to the region, then re-project to EPSG:3083 (NAD83 / Texas Centric Albers Equal Area) for consistent spatial analysis.
 
 ```{r include=TRUE}
 ##make a list of points, and to make it close, make the first and last points same
@@ -171,16 +150,7 @@ ggplot(blackout_mask) +
 
 ```
 
-##### exclude highways from blackout mask
-The roads geopackage includes data on roads other than highways. However, avoid reading in data that is not needed by taking `st_read`'s ability to subset using a SQL query.\
-
--   define SQL query\
--   load just highway data from geopackage using `st_read`\
--   reproject data to EPSG:3083\
--   identify areas within 200m of all highways using `st_buffer`\
-    -   hint: `st_buffer` produces undissolved buffers, use `st_union` to dissolve them\
--   areas that experienced blackouts that are further than 200m from a highway
-
+Exclude highways from blackout mask: Define SQL query, load only highway data from geopackage using st_read with subset query. Reproject to EPSG:3083. Identify blackout areas beyond 200m from highways by creating dissolved buffers using st_buffer and st_union for accurate exclusion.
 
 ```{r include=TRUE}
 query <- "SELECT * FROM gis_osm_roads_free_1 WHERE fclass='motorway'"
@@ -205,13 +175,8 @@ blackout_mask_without_road <- st_difference(blackout_mask, highway_bufferized)
 
 ```
 
-#### Find homes impacted by blackouts
 
-##### load buildings data (10 points)
-
--   load buildings dataset using `st_read` and the following SQL query to select only residential buildings\
--   reproject data to EPSG:3083\
-
+Find homes impacted by blackouts: Load buildings dataset using st_read with SQL query to select residential buildings. Reproject data to EPSG:3083 for consistent spatial analysis.
 
 ```{r include=TRUE}
 
@@ -223,10 +188,7 @@ buildings <- st_read("data/gis_osm_buildings_a_free_1.gpkg", query = query)
 buildings <- st_transform(buildings, crs = 3083)
 ```
 
-##### find homes in blackout areas
-
--   filter to homes within blackout areas\
--   count number of impacted homes\
+Identify homes in blackout areas: Filter residential buildings to those within blackout zones and count the number of impacted homes.
 
 ```{r include=TRUE}
 # Check validity of geometry
@@ -245,14 +207,7 @@ nrow(st_centroid(buildings_at_blackout_areas))
 
 `r nrow(st_centroid(buildings_at_blackout_areas))` houses were affected.
 
-#### Investigate socioeconomic factors
-
-##### load ACS data
-
--   geometries are stored in the `ACS_2019_5YR_TRACT_48_TEXAS` layer\
--   income data is stored in the `X19_INCOME` layer\
--   select the median income field `B19013e1`\
--   hint: reproject data to EPSG:3083\
+Investigate socioeconomic factors: Load ACS data from the ACS_2019_5YR_TRACT_48_TEXAS layer. Extract median income data (B19013e1) from the X19_INCOME layer. Reproject the data to EPSG:3083 for consistent spatial analysis.
 
 ```{r include=TRUE}
 ##read the geometry layer
@@ -267,12 +222,7 @@ income_data <- st_read("data/ACS_2019_5YR_TRACT_48_TEXAS.gdb.zip",
 median_income <- income_data[c("GEOID", "B19013e1")]
 ```
 
-##### determine which census tracts experienced blackouts
-
--   join the income data to the census tract geometries\
--   hint: make sure to join by geometry ID\
--   spatially join census tract data with buildings determined to be impacted by blackouts\
--   find which census tracts had blackouts\
+Determine blackout-affected census tracts: Join income data to census tract geometries by geometry ID. Spatially join census tract data with buildings impacted by blackouts to identify census tracts experiencing blackouts.
 
 ```{r include=TRUE}
 ##get the geometry of the data
@@ -297,10 +247,7 @@ ggplot(income_census_blackout)+
 
 ```
 
-##### compare incomes of impacted tracts to unimpacted tracts
-
--   create a map of median income by census tract, designating which tracts had blackouts\
--   plot the distribution of income in impacted and unimpacted tracts
+Compare incomes of impacted and unimpacted tracts: Generate a map of median income by census tract, distinguishing tracts with blackouts. Plot income distribution for impacted and unimpacted tracts for a comprehensive socioeconomic analysis.
 
 ```{r}
 ##median income by census tracts
@@ -349,4 +296,4 @@ ggplot(categorized_final, aes(x = Median_income, col = census_logical))+
         axis.ticks.x = element_blank())
 ```
 
-Based on the median income plot, wealthier census tracts seem affected. This is against what is expected since less wealthy areas should have been affected as they don't have alternative energy sources. These results bolster the argument that wealthier cities are equally or even more vulnerable as climate change brings in bigger and higher storms. Moreover, the median income between the blackout and non-blackout areas is not very different, suggesting that climate change-induced disaster poses equal threats to all background of people.
+Contrary to expectations, the plot of median income reveals that wealthier census tracts experienced blackouts, challenging the assumption that less affluent areas would be more susceptible due to limited alternative energy sources. These findings strengthen the argument that wealthier cities may face increased vulnerability to larger storms induced by climate change. Furthermore, the minimal difference in median income between blackout and non-blackout areas suggests that climate change-induced disasters pose a uniform threat across diverse socioeconomic backgrounds.
